@@ -26,7 +26,8 @@ import {
   WEATHERS,
 } from '../../core/romData';
 import { MapLayout } from '../../types/rom';
-import { getAuthenticMapLayout } from '../../core/romReader';
+import { getAuthenticMapLayout, readTileset, readPalette } from '../../core/romReader';
+import { RGBAColor } from '../color';
 
 interface MapStudioProps {
   deltaManager: DeltaManager;
@@ -72,6 +73,8 @@ export const MapStudio: React.FC<MapStudioProps> = ({
 }) => {
   const [selectedBankIdx, setSelectedBankIdx] = useState(0);
   const [selectedMapIdx, setSelectedMapIdx] = useState(9); // Default: Bank 0, Map 9 = Littleroot Town
+  const [tileset, setTileset] = useState<number[][]>([]);
+  const [palette, setPalette] = useState<RGBAColor[]>([]);
 
   const activeBank = MAP_BANKS_METADATA[selectedBankIdx] || MAP_BANKS_METADATA[0];
   const activeMapMeta = activeBank.maps[selectedMapIdx] || activeBank.maps[0];
@@ -98,7 +101,11 @@ export const MapStudio: React.FC<MapStudioProps> = ({
       tileset1Ptr: activeLayout.tileset1Ptr,
       tileset2Ptr: activeLayout.tileset2Ptr,
     });
-  }, [activeLayout, onGraphicsPointersChange]);
+    
+    if (activeLayout.tileset1Ptr) {
+        setTileset(readTileset(romBuffer, activeLayout.tileset1Ptr));
+    }
+  }, [activeLayout, onGraphicsPointersChange, romBuffer]);
 
 
   const isMapModified = !!deltaManager.getPatch().maps[mapKey];
