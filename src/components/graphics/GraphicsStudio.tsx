@@ -23,10 +23,13 @@ import {
   hexToRgb,
   quantizeTo16Colors,
 } from '../../core/color';
+import { readTileset, readPalette } from '../../core/romReader';
 
 interface GraphicsStudioProps {
   romBuffer: Uint8Array;
   onDataChanged: () => void;
+  tilesetPtr?: number;
+  palettePtr?: number;
 }
 
 // Default 16-color Emerald outdoor palette in 15-bit BGR format
@@ -52,15 +55,20 @@ const DEFAULT_PALETTE_BGR: number[] = [
 export const GraphicsStudio: React.FC<GraphicsStudioProps> = ({
   romBuffer,
   onDataChanged,
+  tilesetPtr,
+  palettePtr,
 }) => {
   // 16-color palette state
   const [palette, setPalette] = useState<RGBAColor[]>(() =>
-    DEFAULT_PALETTE_BGR.map((bgr, idx) => bgr555ToRgba(bgr, idx === 0))
+    palettePtr
+      ? readPalette(romBuffer, palettePtr)
+      : DEFAULT_PALETTE_BGR.map((bgr, idx) => bgr555ToRgba(bgr, idx === 0))
   );
   const [selectedColorIdx, setSelectedColorIdx] = useState<number>(3);
 
   // 16 tiles in memory (each tile has 64 pixels, values 0..15)
   const [tiles, setTiles] = useState<number[][]>(() => {
+    if (tilesetPtr) return readTileset(romBuffer, tilesetPtr);
     return Array.from({ length: 16 }, (_, tileIdx) => {
       const pixels = new Array(64).fill(0);
       // Generate interesting starter tile patterns
@@ -92,6 +100,11 @@ export const GraphicsStudio: React.FC<GraphicsStudioProps> = ({
       return pixels;
     });
   });
+
+  useEffect(() => {
+    if (tilesetPtr) setTiles(readTileset(romBuffer, tilesetPtr));
+    if (palettePtr) setPalette(readPalette(romBuffer, palettePtr));
+  }, [tilesetPtr, palettePtr, romBuffer]);
 
   const [activeTileIdx, setActiveTileIdx] = useState<number>(3);
   const [activeTool, setActiveTool] = useState<'pencil' | 'eraser'>('pencil');

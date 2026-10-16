@@ -341,54 +341,81 @@ export function parseEvolutions(rom: Uint8Array, speciesId: number): EvolutionEn
 }
 
 /**
- * Generates or extracts a 2D Map Layout for the map studio.
+ * Parses Map Header from GBA pointer.
  */
-export function getMapLayout(
+export function parseMapHeader(rom: Uint8Array, headerPtr: number): any {
+  const offset = gbaPointerToOffset(headerPtr);
+  if (offset < 0 || offset + 20 > rom.length) return null;
+
+  return {
+    layoutPtr: readUint32LE(rom, offset),
+    eventsPtr: readUint32LE(rom, offset + 4),
+    scriptsPtr: readUint32LE(rom, offset + 8),
+    connectionsPtr: readUint32LE(rom, offset + 12),
+    musicId: readUint16LE(rom, offset + 16),
+    mapHeaderId: readUint16LE(rom, offset + 18),
+  };
+}
+
+/**
+ * Extracts and decompresses authentic 2D Map Layout for the map studio.
+ */
+export function getAuthenticMapLayout(
   rom: Uint8Array,
   bankId: number,
   mapId: number,
-  width: number = 20,
-  height: number = 20
+  width: number,
+  height: number
 ): MapLayout {
-  // Generate authentic Hoenn terrain grid
-  const total = width * height;
-  const blocks = new Array(total);
-  const collisions = new Array(total);
+  // 1. Locate Bank Pointer
+  const bankTableOffset = gbaPointerToOffset(OFFSETS.MAP_BANKS_PTR);
+  const bankPtr = readUint32LE(rom, bankTableOffset + bankId * 4);
+  const bankOffset = gbaPointerToOffset(bankPtr);
 
-  // Default procedural base (Littleroot / Hoenn outdoor vibe)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      const isBorder = x === 0 || y === 0 || x === width - 1 || y === height - 1;
-
-      if (isBorder) {
-        blocks[idx] = 0x0001; // Tree block
-        collisions[idx] = 1;  // Impassable
-      } else if (y >= 5 && y <= 8 && x >= 4 && x <= 9) {
-        // Tall grass patch
-        blocks[idx] = 0x0008;
-        collisions[idx] = 0x0c; // Grass behavior
-      } else if (y >= 12 && y <= 15 && x >= 12 && x <= 16) {
-        // Water pond
-        blocks[idx] = 0x0010;
-        collisions[idx] = 0x10; // Surf water
-      } else if (y === 10 && x >= 4 && x <= 7) {
-        // Ledge
-        blocks[idx] = 0x0005;
-        collisions[idx] = 0x38; // Ledge jump south
-      } else if (y === 3 && x === 10) {
-        // Door entrance
-        blocks[idx] = 0x0004;
-        collisions[idx] = 0x69; // Door warp
-      } else {
-        // Walkable ground
-        blocks[idx] = 0x0000;
-        collisions[idx] = 0;   // Passable
-      }
-    }
+  // 2. Locate Map Header
+  const mapHeaderPtr = readUint32LE(rom, bankOffset + mapId * 4);
+  const header = parseMapHeader(rom, mapHeaderPtr);
+  if (!header || header.layoutPtr === 0) {
+    // Fallback to procedural if not found
+    return getProceduralMapLayout(width, height);
   }
 
-  return { width, height, blocks, collisions };
+  // 3. Locate Layout Header and compressed data
+  const layoutOffset = gbaPointerToOffset(header.layoutPtr);
+  const layoutWidth = readUint32LE(rom, layoutOffset);
+  const layoutHeight = readUint32LE(rom, layoutOffset + 4);
+  const blockDataPtr = readUint32LE(rom, layoutOffset + 8);
+  const tileset1Ptr = readUint32LE(rom, layoutOffset + 12);
+  const tileset2Ptr = readUint32LE(rom, layoutOffset + 16);
+  const blockDataOffset = gbaPointerToOffset(blockDataPtr);
+
+  // 4. Decompress LZ77 block data
+  try {
+    const { decompressed } = decompressLZ77(rom, blockDataOffset);
+    // GBA maps are 2 bytes per block (metatile index)
+    const blocks = new Array(layoutWidth * layoutHeight);
+    const collisions = new Array(layoutWidth * layoutHeight);
+
+    for (let i = 0; i < blocks.length; i++) {
+      const val = decompressed[i * 2] | (decompressed[i * 2 + 1] << 8);
+      blocks[i] = val & 0x3FF; // Metatile index (10 bits)
+      collisions[i] = (val >> 10) & 0x3F; // Collision tag (6 bits)
+    }
+
+    return { width: layoutWidth, height: layoutHeight, blocks, collisions, tileset1Ptr, tileset2Ptr };
+  } catch (e) {
+    return getProceduralMapLayout(layoutWidth, layoutHeight);
+  }
+}
+
+function getProceduralMapLayout(width: number, height: number): MapLayout {
+  const total = width * height;
+  return {
+    width,
+    height,
+    blocks: new Array(total).fill(0),
+    collisions: new Array(total).fill(0),
+  };
 }
 
 export interface DecodedSprite {
@@ -447,4 +474,37 @@ export function decodeSpeciesSprite(
   } catch (err) {
     return null;
   }
+}
+
+/**
+ * Reads and decompresses a 4BPP tileset (LZ77).
+ */
+export function readTileset(rom: Uint8Array, ptr: number): number[][] {
+  const offset = gbaPointerToOffset(ptr);
+  if (offset <= 0 || offset >= rom.length || rom[offset] !== 0x10) return [];
+  const { decompressed } = decompressLZ77(rom, offset);
+  
+  // 32 bytes per 8x8 tile
+  const tiles: number[][] = [];
+  for (let i = 0; i < decompressed.length / 32; i++) {
+    const tile: number[] = new Array(64).fill(0);
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        const byte = decompressed[i * 32 + y * 4 + Math.floor(x / 2)];
+        tile[y * 8 + x] = x % 2 === 0 ? byte & 0x0f : (byte >> 4) & 0x0f;
+      }
+    }
+    tiles.push(tile);
+  }
+  return tiles;
+}
+
+/**
+ * Reads and decompresses a GBA palette (LZ77).
+ */
+export function readPalette(rom: Uint8Array, ptr: number): RGBAColor[] {
+  const offset = gbaPointerToOffset(ptr);
+  if (offset <= 0 || offset >= rom.length || rom[offset] !== 0x10) return [];
+  const { decompressed } = decompressLZ77(rom, offset);
+  return decodeGBAPalette(decompressed, 0, false);
 }

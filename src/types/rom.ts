@@ -78,6 +78,8 @@ export interface MapLayout {
   height: number;
   blocks: number[]; // 16-bit metatile values (combines metatile index & collision)
   collisions: number[]; // 0 = passable, 1 = solid, 0x0C = grass, 0x10 = surf, 0x38 = ledge, 0x69 = door
+  tileset1Ptr?: number;
+  tileset2Ptr?: number;
 }
 
 export interface DeltaPatch {

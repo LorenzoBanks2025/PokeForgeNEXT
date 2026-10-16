@@ -21,6 +21,7 @@ export default function App() {
   const [deltaManager, setDeltaManager] = useState<DeltaManager | null>(null);
   const [activeTab, setActiveTab] = useState<StudioTab>('database');
   const [dataRevision, setDataRevision] = useState<number>(0);
+  const [graphicsPointers, setGraphicsPointers] = useState<{ tileset1Ptr?: number; tileset2Ptr?: number; palettePtr?: number }>({});
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const forgeInputRef = useRef<HTMLInputElement>(null);
@@ -185,6 +186,7 @@ export default function App() {
                 deltaManager={deltaManager}
                 romBuffer={romBuffer}
                 onDataChanged={handleDataChanged}
+                onGraphicsPointersChange={setGraphicsPointers}
               />
             )}
 
@@ -193,6 +195,8 @@ export default function App() {
                 key={`gfx-${dataRevision}`}
                 romBuffer={romBuffer}
                 onDataChanged={handleDataChanged}
+                tilesetPtr={graphicsPointers.tileset1Ptr}
+                palettePtr={graphicsPointers.palettePtr}
               />
             )}
 

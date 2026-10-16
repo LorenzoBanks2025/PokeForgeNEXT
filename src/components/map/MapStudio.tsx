@@ -26,12 +26,13 @@ import {
   WEATHERS,
 } from '../../core/romData';
 import { MapLayout } from '../../types/rom';
-import { getMapLayout } from '../../core/romReader';
+import { getAuthenticMapLayout } from '../../core/romReader';
 
 interface MapStudioProps {
   deltaManager: DeltaManager;
   romBuffer: Uint8Array;
   onDataChanged: () => void;
+  onGraphicsPointersChange: (pointers: { tileset1Ptr?: number; tileset2Ptr?: number; palettePtr?: number }) => void;
 }
 
 // 16 Metatiles with distinctive Hoenn colors and patterns
@@ -78,7 +79,7 @@ export const MapStudio: React.FC<MapStudioProps> = ({
 
   // Layout state
   const defaultLayout = useMemo(() => {
-    return getMapLayout(
+    return getAuthenticMapLayout(
       romBuffer,
       activeBank.bankId,
       activeMapMeta.mapId,
@@ -90,6 +91,14 @@ export const MapStudio: React.FC<MapStudioProps> = ({
   const activeLayout: MapLayout = useMemo(() => {
     return deltaManager.getEffectiveMap(mapKey, defaultLayout);
   }, [deltaManager, mapKey, defaultLayout, onDataChanged]);
+
+  useEffect(() => {
+    onGraphicsPointersChange({
+      tileset1Ptr: activeLayout.tileset1Ptr,
+      tileset2Ptr: activeLayout.tileset2Ptr,
+    });
+  }, [activeLayout, onGraphicsPointersChange]);
+
 
   const isMapModified = !!deltaManager.getPatch().maps[mapKey];
 
