@@ -1,0 +1,6 @@
+{
+  "name": "PokeForge - Pokémon Emerald ROM Editor",
+  "description": "Zero-install web-based binary ROM editor for Pokémon Emerald (U) with Map Studio, Database Studio, Graphics Studio, Text Studio, and .forge delta workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,6 @@
+{
+  "summary": "Implementation plan for PokeForge, a high-performance web-based binary ROM editor for Pokémon Emerald (US) featuring CRC32 validation, delta-patch workspace (.forge), real-time Map Studio with metatiles and collision layers, Database Studio (Pokémon base stats, learnsets, evolutions, items), Graphics Studio (tilesheet and 4BPP 15-bit BGR palette editor), Script & Text Studio with GBA encoding, and LZ77 re-compression export engine.",
+  "updatedAt": "2026-10-16T21:59:13.664054645Z",
+  "requestFeedback": true,
+  "userFacing": true
+}
