@@ -10,7 +10,7 @@ import { DatabaseStudio } from './components/database/DatabaseStudio';
 import { MapStudio } from './components/map/MapStudio';
 import { GraphicsStudio } from './components/graphics/GraphicsStudio';
 import { TextStudio } from './components/text/TextStudio';
-import { DiffViewer } from './components/build/DiffViewer';
+import { DiffViewer } from './components/DiffViewer';
 import { DeltaManager } from './core/deltaManager';
 import { ROMValidationResult } from './core/romReader';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
