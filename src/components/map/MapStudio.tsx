@@ -68,6 +68,7 @@ export const MapStudio: React.FC<MapStudioProps> = ({
   deltaManager,
   romBuffer,
   onDataChanged,
+  onGraphicsPointersChange,
 }) => {
   const [selectedBankIdx, setSelectedBankIdx] = useState(0);
   const [selectedMapIdx, setSelectedMapIdx] = useState(9); // Default: Bank 0, Map 9 = Littleroot Town
